@@ -22,6 +22,13 @@
 #include <iostream>
 #include <iterator>
 #include <algorithm>
+#include <fstream>
+#include <ctime>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstdlib>
+#include <cstring>
 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -57,6 +64,11 @@ bool program_active = true;
 
 int main( int argc, const char** argv )
 {
+  ////////// modified 5/24/2016
+  // get current time
+  time_t now = time(0);
+  printf("start time: %s\n", ctime(&now));
+
   std::vector<std::string> filenames;
   std::string configFile = "";
   bool outputJson = false;
@@ -66,6 +78,38 @@ int main( int argc, const char** argv )
   int topn;
   bool debug_mode = false;
 
+  /*
+  // create socket
+  int socketfd, newsocketfd, port;
+  socklen_t len;
+  uint8_t buffer[256];
+  struct sockaddr_in server, client;
+  int n;
+  socketfd = socket(AF_INET, SOCK_STREAM, 0);
+  if(socketfd < 0) {
+    printf("create socket error\n");
+  }
+
+  bzero((char *)&server, sizeof(server));
+  port = atoi("8888");
+  server.sin_family = AF_INET;
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_port = htons(port);
+  // bind socket to IP
+  if(bind(socketfd, (struct sockaddr *)&server, sizeof(server)) > 0) {
+    printf("bind.\n");
+  }
+
+  listen(socketfd, 5);
+  len = sizeof(client);
+  newsocketfd = accept(socketfd, (struct sockaddr *)&client, &len);
+  if(newsocketfd < 0) {
+    printf("error create new socket\n");
+  }
+
+  */
+
+  // original openalpr
   TCLAP::CmdLine cmd("OpenAlpr Command Line Utility", ' ', Alpr::getVersion());
 
   TCLAP::UnlabeledMultiArg<std::string>  fileArg( "image_file", "Image containing license plates", true, "", "image_file_path"  );
@@ -140,8 +184,24 @@ int main( int argc, const char** argv )
     std::cerr << "Error loading OpenALPR" << std::endl;
     return 1;
   }
+  
+  now = time(0);
+  printf("load CUDA time: %s\n", ctime(&now));
+  /////////////// stop point
+  char toStart;
+  
+  while(1) {
+    printf("type 's' to start detecting license plates...\n");
+    /*
+    bzero(buffer, sizeof(buffer));
+    if((n = recv(newsocketfd, buffer, 255, 0)) < 0) {
+      break;
+    }
+    */
+    now = time(0);
+    printf("start detecting time: %s\n", ctime(&now));
 
-  for (unsigned int i = 0; i < filenames.size(); i++)
+    for (unsigned int i = 0; i < filenames.size(); i++)
   {
     std::string filename = filenames[i];
 
@@ -304,6 +364,180 @@ int main( int argc, const char** argv )
     }
   }
 
+    now = time(0);
+    printf("end time: %s.\n", ctime(&now));
+
+  }
+  
+  
+  ///////////////
+  /*
+  for (unsigned int i = 0; i < filenames.size(); i++)
+  {
+    std::string filename = filenames[i];
+
+    if (filename == "stdin")
+    {
+      std::string filename;
+      while (std::getline(std::cin, filename))
+      {
+        if (fileExists(filename.c_str()))
+        {
+          frame = cv::imread(filename);
+          detectandshow(&alpr, frame, "", outputJson);
+        }
+        else
+        {
+          std::cerr << "Image file not found: " << filename << std::endl;
+        }
+
+      }
+    }
+    else if (filename == "webcam" || startsWith(filename, WEBCAM_PREFIX))
+    {
+      int webcamnumber = 0;
+      
+      // If they supplied "/dev/video[number]" parse the "number" here
+      if(startsWith(filename, WEBCAM_PREFIX) && filename.length() > WEBCAM_PREFIX.length())
+      {
+        webcamnumber = atoi(filename.substr(WEBCAM_PREFIX.length()).c_str());
+      }
+      
+      int framenum = 0;
+      cv::VideoCapture cap(webcamnumber);
+      if (!cap.isOpened())
+      {
+        std::cerr << "Error opening webcam" << std::endl;
+        return 1;
+      }
+
+      while (cap.read(frame))
+      {
+        if (framenum == 0)
+          motiondetector.ResetMotionDetection(&frame);
+        detectandshow(&alpr, frame, "", outputJson);
+        sleep_ms(10);
+        framenum++;
+      }
+    }
+    else if (startsWith(filename, "http://") || startsWith(filename, "https://"))
+    {
+      int framenum = 0;
+
+      VideoBuffer videoBuffer;
+
+      videoBuffer.connect(filename, 5);
+
+      cv::Mat latestFrame;
+
+      while (program_active)
+      {
+        std::vector<cv::Rect> regionsOfInterest;
+        int response = videoBuffer.getLatestFrame(&latestFrame, regionsOfInterest);
+
+        if (response != -1)
+        {
+          if (framenum == 0)
+            motiondetector.ResetMotionDetection(&latestFrame);
+          detectandshow(&alpr, latestFrame, "", outputJson);
+        }
+
+        // Sleep 10ms
+        sleep_ms(10);
+        framenum++;
+      }
+
+      videoBuffer.disconnect();
+
+      std::cout << "Video processing ended" << std::endl;
+    }
+    else if (hasEndingInsensitive(filename, ".avi") || hasEndingInsensitive(filename, ".mp4") ||
+                                                       hasEndingInsensitive(filename, ".webm") ||
+                                                       hasEndingInsensitive(filename, ".flv") || hasEndingInsensitive(filename, ".mjpg") ||
+                                                       hasEndingInsensitive(filename, ".mjpeg") ||
+             hasEndingInsensitive(filename, ".mkv")
+        )
+    {
+      if (fileExists(filename.c_str()))
+      {
+        int framenum = 0;
+
+        cv::VideoCapture cap = cv::VideoCapture();
+        cap.open(filename);
+        cap.set(CV_CAP_PROP_POS_MSEC, seektoms);
+
+        while (cap.read(frame))
+        {
+          if (SAVE_LAST_VIDEO_STILL)
+          {
+            cv::imwrite(LAST_VIDEO_STILL_LOCATION, frame);
+          }
+          if (!outputJson)
+            std::cout << "Frame: " << framenum << std::endl;
+          
+          if (framenum == 0)
+            motiondetector.ResetMotionDetection(&frame);
+          detectandshow(&alpr, frame, "", outputJson);
+          //create a 1ms delay
+          sleep_ms(1);
+          framenum++;
+        }
+      }
+      else
+      {
+        std::cerr << "Video file not found: " << filename << std::endl;
+      }
+    }
+    else if (is_supported_image(filename))
+    {
+      if (fileExists(filename.c_str()))
+      {
+        frame = cv::imread(filename);
+
+        bool plate_found = detectandshow(&alpr, frame, "", outputJson);
+
+        if (!plate_found && !outputJson)
+          std::cout << "No license plates found." << std::endl;
+      }
+      else
+      {
+        std::cerr << "Image file not found: " << filename << std::endl;
+      }
+    }
+    else if (DirectoryExists(filename.c_str()))
+    {
+      std::vector<std::string> files = getFilesInDir(filename.c_str());
+
+      std::sort(files.begin(), files.end(), stringCompare);
+
+      for (int i = 0; i < files.size(); i++)
+      {
+        if (is_supported_image(files[i]))
+        {
+          std::string fullpath = filename + "/" + files[i];
+          std::cout << fullpath << std::endl;
+          frame = cv::imread(fullpath.c_str());
+          if (detectandshow(&alpr, frame, "", outputJson))
+          {
+            //while ((char) cv::waitKey(50) != 'c') { }
+          }
+          else
+          {
+            //cv::waitKey(50);
+          }
+        }
+      }
+    }
+    else
+    {
+      std::cerr << "Unknown file type" << std::endl;
+      return 1;
+    }
+  }
+  */
+
+  now = time(0);
+  printf("end time: %s.\n", ctime(&now));
   return 0;
 }
 
@@ -317,6 +551,7 @@ bool is_supported_image(std::string image_file)
 
 bool detectandshow( Alpr* alpr, cv::Mat frame, std::string region, bool writeJson)
 {
+  std::ofstream output("license.txt", std::ios::trunc);
 
   timespec startTime;
   getTimeMonotonic(&startTime);
@@ -344,6 +579,7 @@ bool detectandshow( Alpr* alpr, cv::Mat frame, std::string region, bool writeJso
   }
   else
   {
+    
     for (int i = 0; i < results.plates.size(); i++)
     {
       std::cout << "plate" << i << ": " << results.plates[i].topNPlates.size() << " results";
@@ -367,9 +603,9 @@ bool detectandshow( Alpr* alpr, cv::Mat frame, std::string region, bool writeJso
         std::cout << std::endl;
       }
     }
+
+    output << results.plates[0].topNPlates[0].characters;
   }
-
-
 
   return results.plates.size() > 0;
 }

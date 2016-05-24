@@ -26,7 +26,7 @@ detection_iteration_increase = 1.1
 ; The minimum detection strength determines how sure the detection algorithm must be before signaling that 
 ; a plate region exists.  Technically this corresponds to LBP nearest neighbors (e.g., how many detections 
 ; are clustered around the same area).  For example, 2 = very lenient, 9 = very strict.
-detection_strictness = 3
+detection_strictness = 2
 
 ; The detection doesn't necessarily need an extremely high resolution image in order to detect plates
 ; Using a smaller input image should still find the plates and will do it faster
@@ -40,7 +40,7 @@ max_detection_input_height = 720
 ; lbpgpu    - LBP-based detector that uses Nvidia GPU to increase recognition speed.
 ; lbpopencl - LBP-based detector that uses OpenCL GPU to increase recognition speed.  Requires OpenCV 3.0
 ; morphcpu  - Experimental detector that detects white rectangles in an image.  Does not require training.
-detector = lbpcpu
+detector = lbpgpu
 
 ; If set to true, all results must match a postprocess text pattern if a pattern is available.  
 ; If not, the result is disqualified. 
