@@ -190,14 +190,16 @@ int main( int argc, const char** argv )
   /////////////// stop point
   char toStart;
   
+  /*
+  //// to comment to temp test
   while(1) {
     printf("type 's' to start detecting license plates...\n");
-    /*
+    
     bzero(buffer, sizeof(buffer));
     if((n = recv(newsocketfd, buffer, 255, 0)) < 0) {
       break;
     }
-    */
+    
     now = time(0);
     printf("start detecting time: %s\n", ctime(&now));
 
@@ -369,9 +371,9 @@ int main( int argc, const char** argv )
 
   }
   
-  
+  */
   ///////////////
-  /*
+  
   for (unsigned int i = 0; i < filenames.size(); i++)
   {
     std::string filename = filenames[i];
@@ -534,7 +536,7 @@ int main( int argc, const char** argv )
       return 1;
     }
   }
-  */
+  
 
   now = time(0);
   printf("end time: %s.\n", ctime(&now));
@@ -551,7 +553,7 @@ bool is_supported_image(std::string image_file)
 
 bool detectandshow( Alpr* alpr, cv::Mat frame, std::string region, bool writeJson)
 {
-  std::ofstream output("license.txt", std::ios::trunc);
+ // std::ofstream output("license.txt", std::ios::trunc);
 
   timespec startTime;
   getTimeMonotonic(&startTime);
@@ -604,7 +606,7 @@ bool detectandshow( Alpr* alpr, cv::Mat frame, std::string region, bool writeJso
       }
     }
 
-    output << results.plates[0].topNPlates[0].characters;
+    //output << results.plates[0].topNPlates[0].characters;
   }
 
   return results.plates.size() > 0;
